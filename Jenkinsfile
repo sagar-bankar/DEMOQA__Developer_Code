@@ -7,34 +7,49 @@ pipeline {
     }
 
     stages {
-        stage('Checkout') {
+        stage('Checkout Developer Repo') {
             steps {
-                echo 'Checking out code from GitHub...'
-                git url: 'https://github.com/sagar-bankar/DEMOQA__Automation-Engineer.git', branch: 'master'
+                echo 'Checking out Developer repo from GitHub...'
+                git url: 'https://github.com/sagar-bankar/DEMOQA_Developer_Code.git', branch: 'master'
+            }
+        }
+
+        stage('Checkout Tester Repo') {
+            steps {
+                echo 'Checking out Tester repo from GitHub...'
+                dir('tester-repo') {
+                    git url: 'https://github.com/sagar-bankar/DEMOQA__Automation-Engineer.git', branch: 'master'
+                }
             }
         }
 
         stage('Build') {
             steps {
                 echo 'Building the Maven project...'
-                bat 'mvn clean install -DskipTests'
+                dir('tester-repo') {
+                    bat 'mvn clean install -DskipTests'
+                }
             }
         }
 
         stage('Run Tests') {
             steps {
                 echo 'Running Tests...'
-                bat 'mvn test'
+                dir('tester-repo') {
+                    bat 'mvn test'
+                }
             }
         }
 
         stage('Archive Reports') {
             steps {
-                // Publish JUnit results (this enables TEST_COUNTS vars)
-                junit 'target/surefire-reports/*.xml'
+                dir('tester-repo') {
+                    // Publish JUnit results (this enables TEST_COUNTS vars)
+                    junit 'target/surefire-reports/*.xml'
 
-                // Archive custom HTML reports (Extent report etc.)
-                archiveArtifacts artifacts: 'reports/*.html', fingerprint: true
+                    // Archive custom HTML reports (Extent report etc.)
+                    archiveArtifacts artifacts: 'reports/*.html', fingerprint: true
+                }
             }
         }
     }
@@ -64,7 +79,7 @@ pipeline {
                     <b>Build Number:</b> #${env.BUILD_NUMBER}<br>
                     <b>Build URL:</b> <a href="${env.BUILD_URL}">${env.BUILD_URL}</a>
                 """,
-                attachmentsPattern: 'reports/*.html'
+                attachmentsPattern: 'tester-repo/reports/*.html'
             )
         }
         success {
@@ -87,7 +102,7 @@ pipeline {
                     <b>Build Number:</b> #${env.BUILD_NUMBER}<br>
                     <b>Build URL:</b> <a href="${env.BUILD_URL}">${env.BUILD_URL}</a>
                 """,
-                attachmentsPattern: 'reports/*.html'
+                attachmentsPattern: 'tester-repo/reports/*.html'
             )
         }
     }
