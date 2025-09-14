@@ -7,43 +7,88 @@ pipeline {
     }
 
     stages {
-        stage('Checkout Developer Code') {
+        stage('Trigger Info') {
             steps {
-                git branch: 'master', url: 'https://github.com/sagar-bankar/DEMOQA_Developer_Code.git'
+                echo "✅ Pipeline triggered by Developer repo webhook 🚀"
             }
         }
 
         stage('Checkout Tester Code') {
             steps {
-                dir('tester-repo') {
-                    git branch: 'master', url: 'https://github.com/sagar-bankar/DEMOQA__Automation-Engineer.git'
-                }
+                git branch: 'master', url: 'https://github.com/sagar-bankar/DEMOQA__Automation-Engineer.git'
             }
         }
 
         stage('Build') {
             steps {
-                dir('tester-repo') {
-                    bat 'mvn clean install -DskipTests'
-                }
+                bat 'mvn clean install -DskipTests'
             }
         }
 
         stage('Run Tests') {
             steps {
-                dir('tester-repo') {
-                    bat 'mvn test'
-                }
+                bat 'mvn test'
             }
         }
 
         stage('Archive Reports') {
             steps {
-                dir('tester-repo') {
-                    junit 'target/surefire-reports/*.xml'
-                    archiveArtifacts artifacts: 'reports/*.html', fingerprint: true
-                }
+                junit 'target/surefire-reports/*.xml'
+                archiveArtifacts artifacts: 'reports/*.html', fingerprint: true
             }
+        }
+    }
+
+    post {
+        always {
+            echo 'Cleaning workspace...'
+            cleanWs()
+        }
+        failure {
+            echo 'Build failed. Sending email...'
+            emailext (
+                to: 'sagar.bankar590@gmail.com',
+                subject: "❌ Build Failed - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: """
+                    Hello Team,<br><br>
+                    Build/Tests FAILED ❌<br><br>
+
+                    <b>Test Summary:</b><br>
+                    - Total Tests: \${TEST_COUNTS,total}<br>
+                    - Passed: \${TEST_COUNTS,passed}<br>
+                    - Failed: \${TEST_COUNTS,failed}<br>
+                    - Skipped: \${TEST_COUNTS,skipped}<br><br>
+
+                    Please check Jenkins console logs.<br><br>
+                    <b>Job:</b> ${env.JOB_NAME}<br>
+                    <b>Build Number:</b> #${env.BUILD_NUMBER}<br>
+                    <b>Build URL:</b> <a href="${env.BUILD_URL}">${env.BUILD_URL}</a>
+                """,
+                attachmentsPattern: 'reports/*.html'
+            )
+        }
+        success {
+            echo 'Build successful! Sending email...'
+            emailext (
+                to: 'sagar.bankar590@gmail.com',
+                subject: "✅ Build Success - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: """
+                    Hello Team,<br><br>
+                    All tests executed successfully ✅<br><br>
+
+                    <b>Test Summary:</b><br>
+                    - Total Tests: \${TEST_COUNTS,total}<br>
+                    - Passed: \${TEST_COUNTS,passed}<br>
+                    - Failed: \${TEST_COUNTS,failed}<br>
+                    - Skipped: \${TEST_COUNTS,skipped}<br><br>
+
+                    Please find the attached test report.<br><br>
+                    <b>Job:</b> ${env.JOB_NAME}<br>
+                    <b>Build Number:</b> #${env.BUILD_NUMBER}<br>
+                    <b>Build URL:</b> <a href="${env.BUILD_URL}">${env.BUILD_URL}</a>
+                """,
+                attachmentsPattern: 'reports/*.html'
+            )
         }
     }
 }
